@@ -1,5 +1,5 @@
 ---
-title: "Tipos de filme de FULANO(A)"
+title: "Tipos de filme de Julia Roberts"
 output:
     html_document:
     df_print: paged
@@ -12,6 +12,8 @@ library(here)
 library(cluster)
 library(plotly)
 library(ggdendro)
+library(broom)
+library(ggbeeswarm)
 
 source(here::here("code/lib.R"))
 theme_set(theme_report())
@@ -31,7 +33,7 @@ paleta = c("#404E4D",
 ```{r}
 ## ANTES DE USAR
 # Para criar data/movies.csv
-import_data("scarlett_johansson") # ou com o ator/atriz que você escolher
+import_data("julia_roberts") # ou com o ator/atriz que você escolher
 ```
 
 
@@ -128,3 +130,110 @@ atribuicoes %>%
     coord_flip() 
 ```
 
+#Relação entre Bilheteria e Avaliações
+
+```{r}
+filmes %>% 
+    ggplot(aes(x = bilheteria,
+               y = avaliacao)) + 
+    geom_point() +
+    geom_smooth(method="lm", se=FALSE) +
+    labs(title="Relação entre Bilheteria e Avaliações") +
+    theme_bw()
+```
+
+#Preparação dos dados
+ ```{r}
+# # Normalization
+# filmesNorm <- as.data.frame(scale(filmes))
+# 
+# # Original data
+# p1 <- filmes %>%
+#         ggplot(aes(x = bilheteria, y = avaliacao)) +
+#         geom_point() +
+#         labs(title="Dados originais") +
+#         theme_bw()
+# 
+# # Normalized data 
+# p2 <- filmesNorm %>%
+#         ggplot(aes(x = bilheteria, y = avaliacao)) +
+#         geom_point() +
+#         labs(title="Dados normalizados") +
+#         theme_bw()
+# 
+# # Subplot
+# grid.arrange(p1, p2, ncol=2)
+#```
+
+
+## K-means
+### Com uma dimensão
+
+
+```{r}
+filmes_transform = filmes %>% 
+    mutate(bilheteria_log = log10(bilheteria))
+summary(filmes_transform %>% select(bilheteria, bilheteria_log))
+```
+
+
+```{r}
+n_clusters = 4
+
+# O agrupamento de fato:
+km = filmes_transform %>% 
+    select(bilheteria_log, avaliacao) %>% 
+    kmeans(centers = n_clusters, nstart = 20)
+
+agrupado = km %>%
+    augment(filmes_transform)
+
+agrupado %>% 
+    ggplot(aes(x = bilheteria, y = avaliacao, color = .cluster))  + 
+    geom_point(size = 2) + 
+    scale_y_log10()
+```
+
+```{r}
+agrupa_bilheteria <- function(df, k){
+    select(df, bilheteria_log) %>% 
+        kmeans(centers = k, 
+               nstart = 20) %>% 
+        augment(df) %>% 
+        mutate(.cluster = as.character(.cluster))
+}
+
+agrupamentos = tibble(k = 1:6) %>% 
+    mutate(agrupamento = map(k, ~ agrupa_bilheteria(filmes_transform, .))) %>% 
+    unnest(agrupamento)
+ 
+agrupamentos %>%
+    ggplot(aes(
+        x = avaliacao,
+        y = bilheteria,
+        label = filme,
+        colour = .cluster
+    )) +
+    geom_quasirandom(width = .3) +
+    facet_wrap( ~ k) +
+    scale_y_log10()
+```
+
+#Com duas dimensões
+
+```{r}
+n_clusters = 4
+
+# O agrupamento de fato:
+km = filmes_transform %>% 
+    select(bilheteria_log, avaliacao) %>% 
+    kmeans(centers = n_clusters, nstart = 20)
+
+agrupado = km %>% 
+    augment(filmes_transform)
+
+agrupado %>% 
+    ggplot(aes(x = avaliacao, y = bilheteria, color = .cluster))  + 
+    geom_point(size = 2) + 
+    scale_y_log10()
+```

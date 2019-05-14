@@ -1,5 +1,6 @@
 ---
-title: "Tipos de filme de Julia Roberts"
+title: "Os 4 Tipos de filmes de Julia Roberts"
+author: "Elton Dantas de Oliveira Mesquita"
 output:
     html_document:
     df_print: paged
@@ -14,6 +15,9 @@ library(plotly)
 library(ggdendro)
 library(broom)
 library(ggbeeswarm)
+library(rvest)
+library(xml2)
+library(factoextra)
 
 source(here::here("code/lib.R"))
 theme_set(theme_report())
@@ -41,199 +45,117 @@ import_data("julia_roberts") # ou com o ator/atriz que você escolher
 filmes = read_imported_data()
 ```
 
-## Descrição
+![](julia_roberts.jpg)
+
+
+###Sobre a atriz
+
+    Julia Fiona Roberts nunca sonhou que se tornaria a atriz mais popular dos Estados Unidos. Ainda criança, devido ao seu amor por animais, Julia queria ser veterinária, mas acabou estudando jornalismo. Quando seu irmão, Eric Roberts, atingiu certo sucesso em Hollywood, ela decidiu atuar. Sua primeira chance veio em 1988 quando ela apareceu em dois filmes para adolescentes: Três Mulheres, Três Amores (1988) e Satisfaction: No Amor e no Rock (1988). Os filmes a introduziaram à uma novo público que instantaneamente se apaixonou por esta linda mulher. O maior sucesso de Julia foi em Uma Linda Mulher (1990), pelo qual ganhou uma indicação ao Oscar, e também ganhou o People's Choice Award de Atriz Favorita. Embora Julia tenha passado os anos seguintes estrelando filmes sérios ou em papéis de fantasia como Tinkerbell, o público sempre prefere vê-la em comédias românticas. Com O Casamento do Meu Melhor Amigo (1997) Julia deu vida nova ao gênero, que estava esquecido em Hollywood já há algum tempo.Em 2000, Roberts se tornou a primeira atriz a receber 20 milhões, por atuar em Erin Brockovich, de Steven Soderbergh. Sua atuação lhe rendeu o Oscar de melhor atriz, o BAFTA de melhor atriz, e o Globo de Ouro de melhor atriz (drama). No ano seguinte ela estrelou no filme America's Sweethearts (2001), novamente com Soderbergh na comédia Ocean's Eleven (2001). Roberts atuou em 2003 no drama Mona Lisa Smile, que lhe rendeu o até então salário recorde de 25 milhões. No ano seguinte, ela estrelou no drama romântico Closer (2004), e também na sequência Ocean's Twelve (2004). Em 2006, ela emprestou sua voz à duas animações: The Ant Bully e Charlotte's Web. Julia reapareceu nas comédias dramáticas Charlie Wilson's War (2007) e Eat Pray Love (2010), seguidas por August: Osage County (2013), pelo qual foi indicada ao Oscar de melhor atriz coadjuvante. Em 2016, Julia interpretou uma produtora de TV em Money Monster e no ano seguinte, uma mãe lidando com seu filho que sofre da síndrome de Treacher Collins na comédia dramática Wonder.
+
+###Descrição
+
+```{r}
+b = filmes %>%
+        group_by(ano) %>% 
+        mutate(bilheteria_anual = sum(bilheteria)) %>% 
+        ggplot(aes(x = ano,
+                   y = bilheteria_anual)) + 
+        geom_point(size = 3,
+                   color = "lightblue")+
+        labs(title = "Bilheteria anual de Julia Roberts")
+ggplotly(b)
+
+a = filmes %>% 
+        ggplot(aes(x = reorder(filme,avaliacao),
+                   y = avaliacao))  + 
+        geom_point(size = 3,
+                   color = "lightgreen") + 
+        scale_y_log10() +
+        coord_flip()
+ggplotly(a)
+```
+
+    Nos últimos anos, filmes com Julia Roberts têm caído em arrecadações. Quanto às suas avaliações, percebemos a formação de 4 grupos de filmes, se considerarmos os dois piores avaliados no mesmo grupo.
+
+###Bilheteria X Avaliação
 
 ```{r}
 filmes %>% 
-    ggplot(aes(x = ano, y = bilheteria)) + 
-    geom_point(size = 4, color = paleta[1]) 
-```
-
-
-
-```{r}
-filmes %>% 
-    ggplot(aes(x = bilheteria)) + 
-    geom_histogram(binwidth = 15, fill = paleta[2], color = "black") + 
-    geom_rug(size = .5) 
-```
-
-```{r}
-filmes %>% 
-    ggplot(aes(x = avaliacao)) + 
-    geom_histogram(binwidth = 10, boundary = 0, fill = paleta[3], color = "black") + 
-    geom_rug(size = .5) 
-```
-
-## Estrutura de grupos?
-
-```{r}
-p = filmes %>% 
-    ggplot(aes(x = "", y = bilheteria, label = filme)) + 
-    geom_jitter(width = .05, alpha = .3, size = 3) + 
-    labs(x = "")
-
-ggplotly(p)
-```
-
-## Agrupamento hierárquico
-
-```{r}
-agrupamento_h = filmes %>% 
-    mutate(nome = paste0(filme, 
-                         " (av=", 
-                         avaliacao, 
-                         ")")) %>% 
-    as.data.frame() %>% 
-    column_to_rownames("filme") %>% 
-    select(avaliacao) %>%
-    dist(method = "euclidian") %>% 
-    hclust(method = "complete")
-
-ggdendrogram(agrupamento_h, rotate = T, size = 2, theme_dendro = F) + 
-    labs(y = "Dissimilaridade", x = "", title = "Dendrograma")
-```
-
-```{r}
-get_grupos <- function(agrupamento, num_grupos){
-    agrupamento %>% 
-        cutree(num_grupos) %>% 
-        as.data.frame() %>% 
-        mutate(label = rownames(.)) %>% 
-        gather(key =  "k", value = "grupo", -label) %>% 
-        mutate(grupo = as.character(grupo))
-}
-
-atribuicoes = get_grupos(agrupamento_h, num_grupos = 1:6)
-
-atribuicoes = atribuicoes %>% 
-    left_join(filmes, by = c("label" = "filme"))
-
-atribuicoes %>% 
-    ggplot(aes(x = "Filmes", y = avaliacao, colour = grupo)) + 
-    geom_jitter(width = .02, height = 0, size = 1.6, alpha = .6) + 
-    facet_wrap(~ paste(k, " grupos")) + 
-    scale_color_brewer(palette = "Dark2")
-
-```
-
-```{r}
-k_escolhido = 3
-
-atribuicoes %>% 
-    filter(k == k_escolhido) %>% 
-    ggplot(aes(x = reorder(label, avaliacao), y = avaliacao, colour = grupo)) + 
-    geom_jitter(width = .02, height = 0, size = 3, alpha = .6) + 
-    facet_wrap(~ paste(k, " grupos")) + 
-    scale_color_brewer(palette = "Dark2") + 
-    labs(x = "", y = "Avaliação RT") + 
-    coord_flip() 
-```
-
-#Relação entre Bilheteria e Avaliações
-
-```{r}
-filmes %>% 
-    ggplot(aes(x = bilheteria,
-               y = avaliacao)) + 
+    ggplot(aes(x = log10(bilheteria),
+               y = log10(avaliacao))) + 
     geom_point() +
     geom_smooth(method="lm", se=FALSE) +
-    labs(title="Relação entre Bilheteria e Avaliações") +
+    labs(title="Bilheteria X Avaliação") +
     theme_bw()
+
+filmes %>% 
+  summarise(pearson = cor(bilheteria, avaliacao, method = "pearson"), 
+            spearman = cor(bilheteria, avaliacao, method = "spearman"), 
+            kendall = cor(bilheteria, avaliacao, method = "kendall"), )
 ```
 
-#Preparação dos dados
- ```{r}
-# # Normalization
-# filmesNorm <- as.data.frame(scale(filmes))
-# 
-# # Original data
-# p1 <- filmes %>%
-#         ggplot(aes(x = bilheteria, y = avaliacao)) +
-#         geom_point() +
-#         labs(title="Dados originais") +
-#         theme_bw()
-# 
-# # Normalized data 
-# p2 <- filmesNorm %>%
-#         ggplot(aes(x = bilheteria, y = avaliacao)) +
-#         geom_point() +
-#         labs(title="Dados normalizados") +
-#         theme_bw()
-# 
-# # Subplot
-# grid.arrange(p1, p2, ncol=2)
-#```
+    Ainda que muito fraca, percebe-se uma correlação positiva entre as variáveis bilheteria e avaliação.
 
 
-## K-means
-### Com uma dimensão
+###Agrupando os filmes de Julia Roberts
 
+###Transformação das variáveis
+
+    Ajustamos a disparidade entre as escalas das variáveis bilheteria e avaliação.
 
 ```{r}
-filmes_transform = filmes %>% 
-    mutate(bilheteria_log = log10(bilheteria))
-summary(filmes_transform %>% select(bilheteria, bilheteria_log))
+filmes_scaled = filmes %>% 
+    mutate(bilheteria_log = as.vector(scale(log10(bilheteria))), 
+           avaliacao_scaled = as.vector(scale(avaliacao))) 
+    
+filmes_scaled %>% 
+    select(bilheteria_log, avaliacao_scaled) %>% 
+    summary()
 ```
 
+###O agrupamento de fato
 
 ```{r}
 n_clusters = 4
 
-# O agrupamento de fato:
-km = filmes_transform %>% 
-    select(bilheteria_log, avaliacao) %>% 
-    kmeans(centers = n_clusters, nstart = 20)
+km = filmes_scaled %>% 
+        select(bilheteria_log, avaliacao_scaled) %>% 
+        kmeans(centers = n_clusters, nstart = 20)
 
 agrupado = km %>%
-    augment(filmes_transform)
+    augment(filmes_scaled)
+p = agrupado %>% 
+        ggplot(aes(x = avaliacao_scaled,
+                   y = bilheteria_log,
+                   color = .cluster,
+                   label = filme))  + 
+        geom_point(size = 2) 
+ggplotly(p)
 
-agrupado %>% 
-    ggplot(aes(x = bilheteria, y = avaliacao, color = .cluster))  + 
-    geom_point(size = 2) + 
-    scale_y_log10()
 ```
 
-```{r}
-agrupa_bilheteria <- function(df, k){
-    select(df, bilheteria_log) %>% 
-        kmeans(centers = k, 
-               nstart = 20) %>% 
-        augment(df) %>% 
-        mutate(.cluster = as.character(.cluster))
-}
+    Grupo - Larry Crowne:
+        - Larry Crowne
+        - Mother's Day
+        
+    Grupo - Ocean's Twelve:
+        - America's Sweethearts
+        - Eat Pray Love
+        - Mirror Mirror
+        - Mona Lisa Smile
+        - Ocean's Twelve
+        - The Mexican
+        - Valentine's Day
+        
+    Grupo - Closer:
+        - August: Osage County
+        - Closer
+        - Duplicity
+        - The Ant Bulyy
+    
+    Grupo - Wonder:
+        - Charlie Wilson's War
+        - Charlotte's Web
+        - Ocean's Eleven
+        - Wonder
 
-agrupamentos = tibble(k = 1:6) %>% 
-    mutate(agrupamento = map(k, ~ agrupa_bilheteria(filmes_transform, .))) %>% 
-    unnest(agrupamento)
- 
-agrupamentos %>%
-    ggplot(aes(
-        x = avaliacao,
-        y = bilheteria,
-        label = filme,
-        colour = .cluster
-    )) +
-    geom_quasirandom(width = .3) +
-    facet_wrap( ~ k) +
-    scale_y_log10()
-```
-
-#Com duas dimensões
-
-```{r}
-n_clusters = 4
-
-# O agrupamento de fato:
-km = filmes_transform %>% 
-    select(bilheteria_log, avaliacao) %>% 
-    kmeans(centers = n_clusters, nstart = 20)
-
-agrupado = km %>% 
-    augment(filmes_transform)
-
-agrupado %>% 
-    ggplot(aes(x = avaliacao, y = bilheteria, color = .cluster))  + 
-    geom_point(size = 2) + 
-    scale_y_log10()
-```

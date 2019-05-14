@@ -151,7 +151,7 @@ ggplotly(p)
         - August: Osage County
         - Closer
         - Duplicity
-        - The Ant Bulyy
+        - The Ant Buly
     
     Grupo - Wonder:
         - Charlie Wilson's War

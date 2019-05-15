@@ -116,6 +116,32 @@ filmes_scaled %>%
 ###O agrupamento de fato
 
 ```{r}
+agrupa_filmes <- function(df, k){
+    df %>% 
+        select(avaliacao_scaled, bilheteria_log) %>%
+        kmeans(centers = k, 
+               nstart = 20) %>% 
+        augment(df) %>% 
+        mutate(.cluster = as.character(.cluster))
+}
+
+agrupamentos = tibble(k = 1:6) %>% 
+    mutate(agrupamento = map(k, ~ agrupa_filmes(filmes_scaled, .))) %>% 
+    unnest(agrupamento)
+ 
+agrupamentos %>%
+    ggplot(aes(
+        x = avaliacao,
+        y = bilheteria,
+        label = filme,
+        colour = .cluster
+    )) +
+    geom_point(size = 2, alpha = .8) +
+    facet_wrap( ~ k) +
+    scale_y_log10()
+```
+
+```{r}
 n_clusters = 4
 
 km = filmes_scaled %>% 
@@ -129,7 +155,7 @@ p = agrupado %>%
                    y = bilheteria_log,
                    color = .cluster,
                    label = filme))  + 
-        geom_point(size = 2) 
+        geom_point(size = 2)
 ggplotly(p)
 
 ```
